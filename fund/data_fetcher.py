@@ -58,21 +58,22 @@ def update_fund_mapping(fund_code: str, fund_name: str = None):
 def get_fund_nav_by_date(fund_code: str, date_str: str = None) -> pd.DataFrame:
     """
     优先从本地json缓存读取基金净值数据，如无则用akshare获取并缓存。
+    只获取累计净值走势数据（考虑分红再投资）。
     :param fund_code: 基金代码，如 '110022'
     :param date_str: 日期字符串，格式为 'YYYY-MM-DD'，如果为None则使用今日
-    :return: 包含日期和净值的DataFrame，若失败则返回空DataFrame
+    :return: 包含日期和累计净值的DataFrame，若失败则返回空DataFrame
     """
     if date_str is None:
         date_str = datetime.now().strftime('%Y-%m-%d')
     
-    cache_file = f"data/fund_{fund_code}_{date_str}.json"
+    cache_file = f"data/fund_{fund_code}_{date_str}_cumulative.json"
     # 优先尝试读取本地缓存
     if os.path.exists(cache_file):
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             df = pd.DataFrame(data)
-            if not df.empty and '单位净值' in df.columns:
+            if not df.empty and '累计净值' in df.columns:
                 # 即使使用缓存，也尝试更新基金映射（如果映射不存在）
                 update_fund_mapping(fund_code)
                 return df
@@ -80,7 +81,7 @@ def get_fund_nav_by_date(fund_code: str, date_str: str = None) -> pd.DataFrame:
             print(f"读取本地缓存{cache_file}失败: {e}")
     
     # 删除该基金的旧日期缓存文件
-    old_cache_pattern = f"data/fund_{fund_code}_*.json"
+    old_cache_pattern = f"data/fund_{fund_code}_*_cumulative.json"
     for old_file in glob.glob(old_cache_pattern):
         if old_file != cache_file:  # 不删除当前日期的文件
             try:
@@ -91,8 +92,10 @@ def get_fund_nav_by_date(fund_code: str, date_str: str = None) -> pd.DataFrame:
     
     # 本地无有效缓存，尝试akshare获取
     try:
-        df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
-        if df is None or df.empty or '单位净值' not in df.columns:
+        # 只获取累计净值走势
+        df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
+        
+        if df is None or df.empty or '累计净值' not in df.columns:
             print(f"未获取到基金{fund_code}的有效净值数据，请检查代码或稍后重试。")
             return pd.DataFrame()
         

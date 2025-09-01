@@ -1,5 +1,5 @@
 import json
-from fund import send_drawdown_analysis
+from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist
 
 
 def load_config():
@@ -48,4 +48,7 @@ def send_all_notifications():
 
 
 if __name__ == "__main__":
-    send_all_notifications()
+    # send_all_notifications()
+    analyze_drawdown_strategy("110017", False)
+    # plot_drawdown_hist("110017", 365*5)
+

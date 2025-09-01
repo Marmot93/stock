@@ -1,5 +1,51 @@
 import pandas as pd
+from datetime import datetime, timedelta
 from .data_fetcher import get_fund_nav_by_date
+
+
+def calculate_fund_drawdown(df, fund_code: str = "", silent: bool = False, recent_days: int = None):
+    """
+    通用的基金回撤计算函数
+    :param df: 包含净值数据的DataFrame，必须有'单位净值'和'净值日期'列
+    :param fund_code: 基金代码，用于提示信息
+    :param silent: 是否静默模式（不打印输出）
+    :param recent_days: 如果指定，则只使用最近N天的数据；如果为None则使用所有数据
+    :return: (df_to_use, drawdown) 使用的数据和回撤率序列
+    """
+    if df.empty or '累计净值' not in df.columns or '净值日期' not in df.columns:
+        raise ValueError(f"数据无效，缺少必要列")
+    
+    # 确保日期列为datetime格式
+    try:
+        # 尝试作为时间戳解析（毫秒）
+        df['净值日期'] = pd.to_datetime(df['净值日期'], unit='ms')
+    except ValueError:
+        try:
+            # 如果失败，尝试直接解析字符串格式日期
+            df['净值日期'] = pd.to_datetime(df['净值日期'])
+        except Exception as e:
+            raise ValueError(f"日期解析失败: {e}")
+    
+    df = df.sort_values('净值日期')
+    
+    # 如果指定了recent_days，则只取最近N天的数据；否则使用所有数据
+    if recent_days is not None:
+        df_to_use = df.tail(recent_days)
+        if not silent and fund_code:
+            print(f"使用基金{fund_code}最近{recent_days}天的数据计算回撤。")
+    else:
+        df_to_use = df
+        if not silent and fund_code:
+            print(f"使用基金{fund_code}所有历史数据计算回撤。")
+    
+    nav = df_to_use['累计净值'].astype(float)
+    # 按照支付宝基金回撤计算方法：当前净值相对于历史最高净值的回撤
+    # 计算到当前日期为止的历史最高净值（包括当前日期）
+    running_max = nav.expanding().max()
+    # 回撤率 = (历史最高净值 - 当前净值) / 历史最高净值 * 100%
+    drawdown = (running_max - nav) / running_max * 100
+    
+    return df_to_use, drawdown
 
 
 def analyze_drawdown_strategy(fund_code: str, silent: bool = False):
@@ -9,41 +55,29 @@ def analyze_drawdown_strategy(fund_code: str, silent: bool = False):
     :param silent: 是否静默模式（不打印输出）
     """
     df = get_fund_nav_by_date(fund_code)
-    if df.empty or '单位净值' not in df.columns or '净值日期' not in df.columns:
-        print(f"无法分析基金{fund_code}，数据无效。")
-        return
-    
-    # 数据预处理 - 智能日期解析
     try:
-        # 尝试作为时间戳解析（毫秒）
-        df['净值日期'] = pd.to_datetime(df['净值日期'], unit='ms')
-    except ValueError:
-        try:
-            # 如果失败，尝试直接解析字符串格式日期
-            df['净值日期'] = pd.to_datetime(df['净值日期'])
-        except Exception as e:
-            print(f"日期解析失败: {e}")
-            return None
-    
-    df = df.sort_values('净值日期')
-    
-    nav = df['单位净值'].astype(float)
-    cummax = nav.cummax()
-    drawdown = (nav - cummax) / cummax * 100
+        df_to_use, drawdown = calculate_fund_drawdown(df, fund_code, silent, recent_days=365*5)
+    except ValueError as e:
+        print(f"无法分析基金{fund_code}，{e}")
+        return
     
     
     # 当前回撤率
     current_drawdown = drawdown.iloc[-1]
     
-    # 历史回撤统计
+    # 历史回撤统计 - 使用非零回撤数据计算分位数
+    non_zero_drawdown = drawdown[drawdown > 0]
+    zero_ratio = (drawdown == 0).mean()
+    
     drawdown_stats = {
-        '最大回撤': drawdown.min(),
+        '最大回撤': drawdown.max(),
         '平均回撤': drawdown.mean(),
         '回撤标准差': drawdown.std(),
-        '5%分位数': drawdown.quantile(0.05),
-        '10%分位数': drawdown.quantile(0.10),
-        '25%分位数': drawdown.quantile(0.25),
-        '50%分位数': drawdown.median(),
+        '5%分位数': non_zero_drawdown.quantile(0.05) if len(non_zero_drawdown) > 0 else 0.0,
+        '10%分位数': non_zero_drawdown.quantile(0.10) if len(non_zero_drawdown) > 0 else 0.0,
+        '25%分位数': non_zero_drawdown.quantile(0.25) if len(non_zero_drawdown) > 0 else 0.0,
+        '50%分位数': non_zero_drawdown.median() if len(non_zero_drawdown) > 0 else 0.0,
+        '零回撤比例': zero_ratio * 100,
         '当前回撤': current_drawdown
     }
     
