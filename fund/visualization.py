@@ -8,7 +8,7 @@ plt.rcParams['font.sans-serif'] = ['Heiti TC', 'Arial Unicode MS', 'STHeiti', 'S
 plt.rcParams['axes.unicode_minus'] = False
 
 
-def plot_drawdown_hist(fund_code: str, recent_days: int = 365):
+def plot_drawdown_hist(fund_code: str, recent_days: int = None):
     """
     获取基金净值并绘制回撤率与日期的折线图
     :param fund_code: 基金代码

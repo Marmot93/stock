@@ -17,38 +17,41 @@ def send_all_notifications():
     config = load_config()
     if not config:
         return
-    
+
     bark_urls = config.get('bark_urls', [])
     fund_codes = config.get('fund_codes', [])
-    
+
     if not bark_urls:
         print("配置文件中没有找到Bark URL")
         return
-    
+
     if not fund_codes:
         print("配置文件中没有找到基金代码")
         return
-    
+
     total_notifications = len(bark_urls) * len(fund_codes)
     current = 0
-    
+
     print(f"准备发送 {total_notifications} 个通知...")
-    
+
     for bark_url in bark_urls:
         print(f"\n正在向 {bark_url} 发送通知...")
         for fund_code in fund_codes:
             current += 1
             print(f"[{current}/{total_notifications}] 发送基金 {fund_code} 的分析...")
-            
+
             success = send_drawdown_analysis(bark_url, fund_code)
             if not success:
                 print(f"发送失败: {fund_code} -> {bark_url}")
-    
+
     print(f"\n通知发送完成！共发送 {total_notifications} 个通知。")
 
 
 if __name__ == "__main__":
     # send_all_notifications()
-    analyze_drawdown_strategy("110017", False)
-    # plot_drawdown_hist("110017", 365*5)
+    # code = "001917"
+    code = "159985"
+    recent_days = 365 *3
 
+    analyze_drawdown_strategy(code, False, recent_days=recent_days)
+    plot_drawdown_hist(code, recent_days=recent_days)

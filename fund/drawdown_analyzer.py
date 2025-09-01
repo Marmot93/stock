@@ -48,15 +48,16 @@ def calculate_fund_drawdown(df, fund_code: str = "", silent: bool = False, recen
     return df_to_use, drawdown
 
 
-def analyze_drawdown_strategy(fund_code: str, silent: bool = False):
+def analyze_drawdown_strategy(fund_code: str, silent: bool = False, recent_days: int = None):
     """
     分析基金回撤率统计信息，提供买入建议
+    :param recent_days:
     :param fund_code: 基金代码
     :param silent: 是否静默模式（不打印输出）
     """
     df = get_fund_nav_by_date(fund_code)
     try:
-        df_to_use, drawdown = calculate_fund_drawdown(df, fund_code, silent, recent_days=365*5)
+        df_to_use, drawdown = calculate_fund_drawdown(df, fund_code, silent, recent_days)
     except ValueError as e:
         print(f"无法分析基金{fund_code}，{e}")
         return
@@ -77,39 +78,42 @@ def analyze_drawdown_strategy(fund_code: str, silent: bool = False):
         '10%分位数': non_zero_drawdown.quantile(0.10) if len(non_zero_drawdown) > 0 else 0.0,
         '25%分位数': non_zero_drawdown.quantile(0.25) if len(non_zero_drawdown) > 0 else 0.0,
         '50%分位数': non_zero_drawdown.median() if len(non_zero_drawdown) > 0 else 0.0,
+        '75%分位数': non_zero_drawdown.quantile(0.75) if len(non_zero_drawdown) > 0 else 0.0,
         '零回撤比例': zero_ratio * 100,
         '当前回撤': current_drawdown
     }
     
     # 计算当前回撤的百分位排名
-    current_percentile = (drawdown <= current_drawdown).mean() * 100
-    
-    # 买入建议逻辑
-    if current_drawdown <= drawdown_stats['5%分位数']:
+    # current_percentile = (drawdown <= current_drawdown).mean() * 100
+    current_percentile = (non_zero_drawdown <= current_drawdown).mean() * 100
+
+    # 买入建议逻辑（百分位越高越值得买入）
+    if current_percentile >= 75:
         suggestion = "强烈建议买入"
-        reason = "当前回撤处于历史最深5%区间，具有很高的投资价值"
+        reason = "当前回撤处于历史最深5%区间，极具投资价值"
         risk_level = "低风险"
-    elif current_drawdown <= drawdown_stats['10%分位数']:
+    elif current_percentile >= 50:
         suggestion = "建议买入"
         reason = "当前回撤处于历史较深10%区间，具有较好投资机会"
         risk_level = "较低风险"
-    elif current_drawdown <= drawdown_stats['25%分位数']:
+    elif 15 < current_percentile <= 30:
         suggestion = "可以考虑买入"
         reason = "当前回撤处于历史中等偏深区间，有一定投资价值"
         risk_level = "中等风险"
-    elif current_drawdown > -1:  # 回撤小于1%，接近高点
-        suggestion = "谨慎买入"
-        reason = "当前净值接近历史高点，建议等待更好的买入时机"
-        risk_level = "较高风险"
-    else:
+    elif 0 <  current_percentile <= 15:  # 百分位很低，接近高点
         suggestion = "观望"
         reason = "当前回撤水平一般，建议继续观察"
         risk_level = "中等风险"
+    else: # current_percentile == 0，当前无回撤
+        suggestion = "不建议买入"
+        reason = "当前净值处于历史高点，无回撤空间"
+        risk_level = "高风险"
+
     
     if not silent:
         print(f"\n=== 基金 {fund_code} 回撤分析 ===")
         print(f"当前回撤率: {current_drawdown:.2f}%")
-        print(f"当前回撤百分位: {current_percentile:.1f}% (越低表示回撤越深)")
+        print(f"当前回撤百分位: {current_percentile:.1f}% (越高表示回撤越大)")
         print(f"\n历史回撤统计:")
         for key, value in drawdown_stats.items():
             print(f"  {key}: {value:.2f}%")
