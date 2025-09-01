@@ -1,0 +1,14 @@
+{
+  "bark_urls": [
+    "https://api.day.app/your_device_key_1",
+    "https://api.day.app/your_device_key_2",
+    "https://api.day.app/your_device_key_3"
+  ],
+  "fund_codes": [
+    "110017",
+    "110022", 
+    "000001",
+    "161725",
+    "519674"
+  ]
+}
