@@ -50,8 +50,9 @@ def send_all_notifications():
 if __name__ == "__main__":
     # send_all_notifications()
     # code = "001917"
-    code = "159985"
-    recent_days = 365 *3
+    code = "110017"
+    # recent_days = 365*5
+    recent_days = None
 
     analyze_drawdown_strategy(code, False, recent_days=recent_days)
     plot_drawdown_hist(code, recent_days=recent_days)
