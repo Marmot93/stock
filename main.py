@@ -1,5 +1,6 @@
 import json
 from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist
+from stock import analyze_stock_drawdown_strategy, plot_stock_drawdown_hist, plot_stock_price_change_distribution
 
 
 def load_config():
@@ -49,10 +50,26 @@ def send_all_notifications():
 
 if __name__ == "__main__":
     # send_all_notifications()
-    # code = "001917"
-    code = "110017"
-    # recent_days = 365*5
-    recent_days = None
-
-    analyze_drawdown_strategy(code, False, recent_days=recent_days)
-    plot_drawdown_hist(code, recent_days=recent_days)
+    recent_days = 365*5
+    # recent_days = None
+    
+    # 基金分析示例
+    # fund_code = "510300"
+    # print("=== 基金分析 ===")
+    # analyze_drawdown_strategy(fund_code, False, recent_days=recent_days)
+    # plot_drawdown_hist(fund_code, recent_days=recent_days)
+    
+    # 股票分析示例
+    stock_code = "600900"
+    # print("\n=== 股票分析 ===")
+    # analyze_stock_drawdown_strategy(stock_code, False, recent_days=recent_days)
+    # plot_stock_drawdown_hist(stock_code, recent_days=recent_days)
+    
+    # 股票涨跌分布分析
+    print("\n=== 股票涨跌分布分析 ===")
+    # 普通分析
+    # plot_stock_price_change_distribution(stock_code, recent_days=recent_days)
+    
+    # 查询特定跌幅的百分位，例如查询-3.5%跌幅在历史中的位置
+    query_drop = -0.89 # 跌幅3.5%
+    plot_stock_price_change_distribution(stock_code, recent_days=recent_days, query_value=query_drop)
