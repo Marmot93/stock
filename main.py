@@ -1,5 +1,5 @@
 import json
-from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist
+from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist, plot_fund_price_change_distribution
 from stock import analyze_stock_drawdown_strategy, plot_stock_drawdown_hist, plot_stock_price_change_distribution
 
 
@@ -54,22 +54,28 @@ if __name__ == "__main__":
     # recent_days = None
     
     # 基金分析示例
-    # fund_code = "510300"
-    # print("=== 基金分析 ===")
+    fund_code = "110017"
+    print("=== 基金涨跌分布分析 ===")
     # analyze_drawdown_strategy(fund_code, False, recent_days=recent_days)
     # plot_drawdown_hist(fund_code, recent_days=recent_days)
     
+    # 基金涨跌分布分析
+    query_fund_drop = -0.36
+    plot_fund_price_change_distribution(fund_code, recent_days=recent_days, query_value=query_fund_drop)
+    
     # 股票分析示例
-    stock_code = "600900"
-    # print("\n=== 股票分析 ===")
+    # stock_code = "600519"
+    # print("\n=== 股票回撤分析 ===")
     # analyze_stock_drawdown_strategy(stock_code, False, recent_days=recent_days)
-    # plot_stock_drawdown_hist(stock_code, recent_days=recent_days)
+    # 测试新的回撤查询功能，查询-5%回撤在历史中的位置
+    # query_drawdown = -5.0
+    # plot_stock_drawdown_hist(stock_code, recent_days=recent_days, query_drawdown=query_drawdown)
     
     # 股票涨跌分布分析
-    print("\n=== 股票涨跌分布分析 ===")
+    # print("\n=== 股票涨跌分布分析 ===")
     # 普通分析
     # plot_stock_price_change_distribution(stock_code, recent_days=recent_days)
     
-    # 查询特定跌幅的百分位，例如查询-3.5%跌幅在历史中的位置
-    query_drop = -0.89 # 跌幅3.5%
-    plot_stock_price_change_distribution(stock_code, recent_days=recent_days, query_value=query_drop)
+    # 查询特定跌幅的百分位
+    # query_drop = -0.72
+    # plot_stock_price_change_distribution(stock_code, recent_days=recent_days, query_value=query_drop)
