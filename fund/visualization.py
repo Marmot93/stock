@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from .data_fetcher import get_fund_nav_by_date, update_fund_mapping
+from .data_fetcher import get_fund_nav_by_date, update_fund_mapping, get_shanghai_volume_data
 from .drawdown_analyzer import calculate_fund_drawdown, analyze_drawdown_strategy
 
 # 设置matplotlib中文字体
@@ -370,3 +370,146 @@ def plot_fund_price_change_distribution(fund_code: str, recent_days: int = None,
         print(f"建议操作: {suggestion}")
         print(f"分析依据: {reason}")
         print(f"风险评估: {risk}")
+
+
+def plot_shanghai_volume_trend(start_date: str = None, end_date: str = None):
+    """
+    绘制上证指数成交额走势图
+    :param start_date: 开始日期，格式为 'YYYY-MM-DD'，如果为None则获取最近1年数据
+    :param end_date: 结束日期，格式为 'YYYY-MM-DD'，如果为None则使用今日
+    """
+    df = get_shanghai_volume_data(start_date, end_date)
+    
+    if df.empty:
+        print("无法获取上证指数成交额数据")
+        return
+    
+    # 确保日期列是datetime类型
+    if '日期' in df.columns:
+        df['日期'] = pd.to_datetime(df['日期'])
+        df = df.sort_values('日期').reset_index(drop=True)
+    else:
+        print("数据中缺少日期列")
+        return
+    
+    if '成交额' not in df.columns:
+        print("数据中缺少成交额列")
+        return
+    
+    # 创建图形
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1], sharex=True)
+    
+    # 绘制收盘价走势图
+    ax1.plot(df['日期'], df['收盘'], linewidth=1.5, color='blue', label='上证指数收盘价')
+    ax1.set_ylabel("指数点位", fontsize=12)
+    ax1.set_title("上证指数价格与成交额走势图", fontsize=14)
+    ax1.grid(True, linestyle='--', alpha=0.3)
+    ax1.legend()
+    
+    # 绘制成交额走势图
+    ax2.bar(df['日期'], df['成交额']/100000000, width=1, color='orange', alpha=0.7, label='成交额')  # 转换为亿元
+    ax2.set_ylabel("成交额 (亿元)", fontsize=12)
+    ax2.set_xlabel("日期", fontsize=12)
+    ax2.grid(True, linestyle='--', alpha=0.3)
+    ax2.legend()
+    
+    # 计算成交额统计信息
+    amount_mean = df['成交额'].mean() / 100000000
+    amount_median = df['成交额'].median() / 100000000
+    amount_max = df['成交额'].max() / 100000000
+    amount_min = df['成交额'].min() / 100000000
+    
+    # 获取最近一天的成交额和日期
+    latest_amount = df['成交额'].iloc[-1] / 100000000
+    latest_date = df['日期'].iloc[-1]
+    
+    # 计算最近一天成交额的百分位
+    latest_value = df['成交额'].iloc[-1]
+    latest_percentile = np.sum(df['成交额'] <= latest_value) / len(df) * 100
+    
+    # 在成交额图上添加参考线
+    ax2.axhline(y=amount_mean, color='red', linestyle='--', alpha=0.8, label=f'平均成交额: {amount_mean:.0f}亿元')
+    ax2.axhline(y=amount_median, color='green', linestyle='--', alpha=0.8, label=f'中位成交额: {amount_median:.0f}亿元')
+    
+    # 添加最近一天成交额线
+    ax2.axhline(y=latest_amount, color='purple', linestyle=':', linewidth=2, alpha=0.9, 
+                label=f'最新成交额: {latest_amount:.0f}亿元 ({latest_percentile:.1f}%分位)')
+    
+    ax2.legend()
+    
+    # 根据成交额百分位生成投资建议
+    if latest_percentile <= 10:
+        investment_advice = "强烈建议：市场冷清，宽基投资黄金时机"
+        advice_color = 'darkgreen'
+    elif latest_percentile <= 25:
+        investment_advice = "建议：成交额较低，可考虑宽基投资"
+        advice_color = 'green'
+    elif latest_percentile <= 40:
+        investment_advice = "观望：成交额偏低，宽基投资时机尚可"
+        advice_color = 'orange'
+    elif latest_percentile <= 75:
+        investment_advice = "谨慎：成交额正常，观察市场趋势"
+        advice_color = 'gray'
+    elif latest_percentile <= 90:
+        investment_advice = "警惕：成交额较高，市场可能过热"
+        advice_color = 'orange'
+    else:
+        investment_advice = "高风险：成交额极高，谨慎追涨"
+        advice_color = 'red'
+    
+    # 添加统计信息文本
+    stats_text = f'成交额统计信息:\n'
+    stats_text += f'平均值: {amount_mean:.0f}亿元\n'
+    stats_text += f'中位数: {amount_median:.0f}亿元\n'
+    stats_text += f'最大值: {amount_max:.0f}亿元\n'
+    stats_text += f'最小值: {amount_min:.0f}亿元\n'
+    stats_text += f'数据期间: {len(df)}个交易日\n\n'
+    stats_text += f'最新日期: {latest_date.strftime("%Y-%m-%d")}\n'
+    stats_text += f'最新成交额: {latest_amount:.0f}亿元\n'
+    stats_text += f'百分位: {latest_percentile:.1f}%'
+    
+    ax2.text(0.02, 0.98, stats_text, transform=ax2.transAxes,
+             verticalalignment='top', horizontalalignment='left',
+             bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8),
+             fontsize=9)
+    
+    # 在图表右下角添加投资建议
+    ax2.text(0.98, 0.02, investment_advice, transform=ax2.transAxes,
+             verticalalignment='bottom', horizontalalignment='right',
+             bbox=dict(boxstyle='round,pad=0.5', facecolor=advice_color, alpha=0.2, edgecolor=advice_color),
+             fontsize=10, weight='bold')
+    
+    # 旋转x轴日期标签
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+    
+    # 打印统计信息
+    print(f"\n=== 上证指数成交额统计 ===")
+    print(f"数据期间: {df['日期'].min().strftime('%Y-%m-%d')} 至 {df['日期'].max().strftime('%Y-%m-%d')}")
+    print(f"总交易日数: {len(df)}天")
+    print(f"平均成交额: {amount_mean:.0f}亿元")
+    print(f"中位成交额: {amount_median:.0f}亿元")
+    print(f"最大成交额: {amount_max:.0f}亿元 ({df[df['成交额'] == df['成交额'].max()]['日期'].iloc[0].strftime('%Y-%m-%d')})")
+    print(f"最小成交额: {amount_min:.0f}亿元 ({df[df['成交额'] == df['成交额'].min()]['日期'].iloc[0].strftime('%Y-%m-%d')})")
+    
+    print(f"\n=== 最新成交额分析 ===")
+    print(f"最新日期: {latest_date.strftime('%Y-%m-%d')}")
+    print(f"最新成交额: {latest_amount:.0f}亿元")
+    print(f"历史百分位: {latest_percentile:.1f}%")
+    print(f"投资建议: {investment_advice}")
+    
+    # 解释百分位含义
+    if latest_percentile <= 25:
+        print(f"说明: 当前成交额低于历史{100-latest_percentile:.1f}%的交易日，市场相对冷清，通常是宽基投资的好时机")
+    elif latest_percentile >= 75:
+        print(f"说明: 当前成交额高于历史{latest_percentile:.1f}%的交易日，市场相对活跃，需谨慎追高")
+    else:
+        print(f"说明: 当前成交额处于历史正常范围内")
+    
+    # 成交额分位数统计
+    percentiles = [10, 25, 50, 75, 90, 95]
+    print(f"\n成交额分位数统计:")
+    for p in percentiles:
+        p_value = np.percentile(df['成交额'], p) / 100000000
+        print(f"  {p:2d}%分位值: {p_value:6.0f}亿元")

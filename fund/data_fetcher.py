@@ -111,3 +111,74 @@ def get_fund_nav_by_date(fund_code: str, date_str: str = None) -> pd.DataFrame:
     except Exception as e:
         print(f"获取基金{fund_code}净值数据时发生异常: {e}")
         return pd.DataFrame()
+
+
+def get_shanghai_volume_data(start_date: str = None, end_date: str = None) -> pd.DataFrame:
+    """
+    获取上证指数成交额数据
+    :param start_date: 开始日期，格式为 'YYYY-MM-DD'，如果为None则获取最近1年数据
+    :param end_date: 结束日期，格式为 'YYYY-MM-DD'，如果为None则使用今日
+    :return: 包含日期、开盘价、收盘价、最高价、最低价、成交量、成交额的DataFrame
+    """
+    if end_date is None:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    
+    if start_date is None:
+        # 默认获取最近1年数据
+        start_datetime = datetime.now() - pd.DateOffset(days=365)
+        start_date = start_datetime.strftime('%Y-%m-%d')
+    
+    cache_file = f"data/shanghai_volume_{start_date}_{end_date}.json"
+    
+    # 优先尝试读取本地缓存
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            df = pd.DataFrame(data)
+            if not df.empty and '成交量' in df.columns and '成交额' in df.columns:
+                return df
+        except Exception as e:
+            print(f"读取上证成交量缓存{cache_file}失败: {e}")
+    
+    # 本地无有效缓存，尝试akshare获取
+    try:
+        # 使用akshare获取上证指数历史数据（使用index_zh_a_hist接口，包含成交额）
+        # 将日期格式转换为akshare需要的格式
+        start_date_str = pd.to_datetime(start_date).strftime('%Y%m%d')
+        end_date_str = pd.to_datetime(end_date).strftime('%Y%m%d')
+        
+        df = ak.index_zh_a_hist(symbol='000001', period='daily', start_date=start_date_str, end_date=end_date_str)
+        
+        if df is None or df.empty:
+            print(f"未获取到上证指数数据，请检查网络连接或稍后重试。")
+            return pd.DataFrame()
+        
+        # 转换日期格式
+        df['日期'] = pd.to_datetime(df['日期'])
+        
+        # 检查是否有成交额列
+        if '成交额' not in df.columns:
+            print(f"数据中缺少成交额列，可用列名: {list(df.columns)}")
+            return pd.DataFrame()
+        
+        # 按日期排序
+        df = df.sort_values('日期').reset_index(drop=True)
+        
+        if df.empty:
+            print(f"指定日期范围内没有上证指数数据")
+            return pd.DataFrame()
+        
+        # 写入本地缓存
+        try:
+            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+            df.to_json(cache_file, orient='records', force_ascii=False, date_format='iso')
+            print(f"上证成交量数据已缓存到: {cache_file}")
+        except Exception as e:
+            print(f"写入上证成交量缓存{cache_file}失败: {e}")
+        
+        return df
+        
+    except Exception as e:
+        print(f"获取上证指数数据时发生异常: {e}")
+        return pd.DataFrame()

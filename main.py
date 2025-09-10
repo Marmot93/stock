@@ -1,5 +1,5 @@
 import json
-from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist, plot_fund_price_change_distribution
+from fund import send_drawdown_analysis, analyze_drawdown_strategy, plot_drawdown_hist, plot_fund_price_change_distribution, plot_shanghai_volume_trend
 from stock import analyze_stock_drawdown_strategy, plot_stock_drawdown_hist, plot_stock_price_change_distribution
 
 
@@ -49,19 +49,27 @@ def send_all_notifications():
 
 
 if __name__ == "__main__":
+    # 上证成交额走势分析
+    print("\n=== 上证成交额走势分析 ===")
+    # 查看最近1年成交额走势
+    # plot_shanghai_volume_trend()
+
+    # 查看指定时间范围成交额走势
+    plot_shanghai_volume_trend(start_date="2020-01-01")
+
     # send_all_notifications()
-    recent_days = 365*5
+    # recent_days = 365*5
     # recent_days = None
     
     # 基金分析示例
-    fund_code = "110017"
-    print("=== 基金涨跌分布分析 ===")
+    # fund_code = "110017"
+    # print("=== 基金涨跌分布分析 ===")
     # analyze_drawdown_strategy(fund_code, False, recent_days=recent_days)
     # plot_drawdown_hist(fund_code, recent_days=recent_days)
     
     # 基金涨跌分布分析
-    query_fund_drop = -0.36
-    plot_fund_price_change_distribution(fund_code, recent_days=recent_days, query_value=query_fund_drop)
+    # query_fund_drop = 0.22
+    # plot_fund_price_change_distribution(fund_code, recent_days=recent_days, query_value=query_fund_drop)
     
     # 股票分析示例
     # stock_code = "600519"
@@ -79,3 +87,4 @@ if __name__ == "__main__":
     # 查询特定跌幅的百分位
     # query_drop = -0.72
     # plot_stock_price_change_distribution(stock_code, recent_days=recent_days, query_value=query_drop)
+
